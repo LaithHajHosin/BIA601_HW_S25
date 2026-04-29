@@ -1,6 +1,7 @@
 
+// API Configuration - Use your actual API endpoint
+// const API_BASE = 'http://localhost:5001'; // Replace with your actual API URL
 const API_BASE = 'https://laithhh527.pythonanywhere.com'; // Replace with your actual API URL
-
 
 let currentUser = null;
 let allProducts = [];
@@ -334,7 +335,7 @@ async function login(email, password) {
     errorDiv.innerText = '';
     
     try {
-        const response = await fetch('http://localhost:5001/login', {
+        const response = await fetch(API_BASE, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
