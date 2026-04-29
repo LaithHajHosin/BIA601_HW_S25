@@ -1,4 +1,3 @@
-
 // API Configuration - Use your actual API endpoint
 // const API_BASE = 'http://localhost:5001'; // Replace with your actual API URL
 const API_BASE = 'https://laithhh527.pythonanywhere.com'; // Replace with your actual API URL
@@ -126,6 +125,7 @@ async function loadAllProducts() {
         } else {
             allProducts = [];
         }
+        console.log(`Loaded ${allProducts.length} products`);
         return true;
     } catch(e) { 
         console.error('Error loading products:', e);
@@ -136,11 +136,28 @@ async function loadAllProducts() {
 
 async function loadAIRecommendations(userId) {
     try {
-        const response = await fetch(`${API_BASE}/recommendations/${userId}`);
-        const data = await response.json();
+        console.log(`Fetching recommendations for user ${userId}...`);
+        // Try multiple possible endpoints
+        let response;
+        let data;
+        
+        // Try GET request first
+        try {
+            response = await fetch(`${API_BASE}/recommendations/${userId}`);
+            data = await response.json();
+        } catch(e) {
+            console.log('GET failed, trying POST...');
+            // Try POST if GET fails
+            response = await fetch(`${API_BASE}/recommendations/${userId}`, {
+                method: 'POST'
+            });
+            data = await response.json();
+        }
+        
+        console.log('Recommendations response:', data);
         
         // Handle different response formats
-        if (data.recommendations) {
+        if (data.recommendations && Array.isArray(data.recommendations)) {
             aiRecommendations = data.recommendations;
         } else if (data.data && data.data.recommendations) {
             aiRecommendations = data.data.recommendations;
@@ -150,6 +167,7 @@ async function loadAIRecommendations(userId) {
             aiRecommendations = [];
         }
         
+        console.log(`Loaded ${aiRecommendations.length} AI recommendations`);
         return aiRecommendations;
     } catch(e) {
         console.error('Error loading AI recommendations:', e);
@@ -166,84 +184,87 @@ async function regenerateRecommendations() {
     container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Genetic Algorithm is finding the best recommendations for you...</p></div>';
     
     try {
-        const response = await fetch(`${API_BASE}/recommendations/generate/${currentUser.id}`, {
-            method: 'POST'
+        const response = await fetch(`${API_BASE}/recommendations/${currentUser.id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
         });
         const data = await response.json();
         
-        if (data.recommendations) {
+        if (data.recommendations && Array.isArray(data.recommendations)) {
             aiRecommendations = data.recommendations;
         } else if (data.data && data.data.recommendations) {
             aiRecommendations = data.data.recommendations;
+        } else if (Array.isArray(data)) {
+            aiRecommendations = data;
         }
         
         showToast('✅ New recommendations generated!', 'success');
-        showProducts('for-you');
+        await showProducts('for-you'); // Wait for products to load
     } catch(e) {
         console.error('Error regenerating:', e);
         showToast('Error generating recommendations', 'error');
-        showProducts('for-you');
-    }
-}
-
-async function loadUsers() {
-    try {
-        const response = await fetch(`${API_BASE}/users`);
-        const data = await response.json();
-        return data.users || data;
-    } catch(e) {
-        console.error('Error loading users:', e);
-        return [];
+        await showProducts('for-you');
     }
 }
 
 // ========== Products Display ==========
 async function showProducts(filter) {
     currentFilter = filter;
-    const container = document.getElementById('forYouContainer');
-    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading products...</p></div>';
     
+    // Show loading in both containers
+    const forYouContainer = document.getElementById('forYouContainer');
+    const productsContainer = document.getElementById('ProductsContainer');
+    
+    forYouContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading recommendations...</p></div>';
+    productsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading products...</p></div>';
+    
+    // Load products first
     await loadAllProducts();
     
     if (filter === 'for-you') {
+        // Load AI recommendations
         await loadAIRecommendations(currentUser.id);
         
         if (aiRecommendations.length > 0) {
             renderProductsWithAISection(aiRecommendations);
         } else {
-            container.innerHTML = `
+            forYouContainer.innerHTML = `
                 <div class="hero">
                     <h1>🤖 No Recommendations Yet</h1>
                     <p>Click the "Regenerate" button to get AI-powered recommendations!</p>
+                    <button onclick="regenerateRecommendations()" class="btn-primary" style="margin-top: 1rem;">🎯 Generate Recommendations</button>
                 </div>
             `;
         }
-    } else if (filter === 'all') {
-        renderProducts(allProducts, false);
     }
-}
-async function showallProducts() {
-    const container = document.getElementById('forYouContainer');
-    container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading products...</p></div>';
     
-    await loadAllProducts();
-    
+    // Always show all products in the ProductsContainer
     renderProducts(allProducts, false);
 }
-showallProducts();
 
 function renderProductsWithAISection(products) {
     const container = document.getElementById('forYouContainer');
     
-    const highScoreProducts = products.filter(p => (p.recommendation_score || 0) > 70);
-    const regularProducts = products.filter(p => (p.recommendation_score || 0) <= 70);
+    if (!products || products.length === 0) {
+        container.innerHTML = '<div class="hero"><p>No recommendations found. Try regenerating!</p></div>';
+        return;
+    }
+    
+    // Sort by recommendation score
+    const sortedProducts = [...products].sort((a, b) => (b.recommendation_score || 0) - (a.recommendation_score || 0));
+    
+    const highScoreProducts = sortedProducts.filter(p => (p.recommendation_score || 0) > 70);
+    const regularProducts = sortedProducts.filter(p => (p.recommendation_score || 0) <= 70 && (p.recommendation_score || 0) > 0);
     
     let html = '';
     
     if (highScoreProducts.length > 0) {
         html += `
             <div class="section-header">
-                <span>🔥 Top Picks</span>
+                <h2>🔥 Top Picks for You <b>+70%</b></h2>
+                <span class="badge">Highly Recommended</span>
             </div>
             <div class="products-grid">
                 ${renderProductCards(highScoreProducts, true)}
@@ -254,16 +275,13 @@ function renderProductsWithAISection(products) {
     if (regularProducts.length > 0) {
         html += `
             <div class="section-header">
-                <span>📦 Recommendations for you</span>
+                <h2>📦 More Recommendations</h2>
+                <span class="badge">Personalized for you</span>
             </div>
             <div class="products-grid">
                 ${renderProductCards(regularProducts, false)}
             </div>
         `;
-    }
-    
-    if (products.length === 0) {
-        html = '<div class="hero"><p>No products found. Try regenerating recommendations!</p></div>';
     }
     
     container.innerHTML = html;
@@ -285,11 +303,15 @@ function renderProducts(products, showFireTag = false) {
 
 function renderProductCards(products, showFireTag = false) {
     if (!products || !products.length) return '<p>No products found</p>';
+    
     return products.map(p => {
         const avgRating = typeof p.avg_rating === 'number' ? p.avg_rating : parseFloat(p.avg_rating) || 0;
         const ratingCount = typeof p.rating_count === 'number' ? p.rating_count : parseInt(p.rating_count) || 0;
         const price = typeof p.price === 'number' ? p.price : parseFloat(p.price) || 0;
         const score = typeof p.recommendation_score === 'number' ? p.recommendation_score : parseFloat(p.recommendation_score) || 0;
+        
+        // Escape product name for JavaScript
+        const productName = (p.product_name || `Product ${p.product_id}`).replace(/'/g, "\\'");
         
         return `
             <div class="product-card" onclick="viewProduct(${p.product_id})">
@@ -301,7 +323,7 @@ function renderProductCards(products, showFireTag = false) {
                     <div class="product-price">$${price.toFixed(2)}</div>
                     <div class="product-rating">⭐ ${avgRating.toFixed(1)} (${ratingCount} reviews)</div>
                     ${score ? `<div class="ai-score">🤖 Match: ${score.toFixed(1)}%</div>` : ''}
-                    <button class="add-to-cart" onclick="event.stopPropagation(); addToCart({product_id:${p.product_id}, product_name:'${(p.product_name || 'Product').replace(/'/g, "\\'")}', price:${price}})">Add to Cart</button>
+                    <button class="add-to-cart" onclick="event.stopPropagation(); addToCart({product_id:${p.product_id}, product_name:'${productName}', price:${price}})">Add to Cart</button>
                 </div>
             </div>
         `;
@@ -323,56 +345,6 @@ function viewProduct(id) {
     }
 }
 
-function setFilter(filter) {
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    showProducts(filter);
-}
-
-// ========== Authentication ==========
-async function login(email, password) {
-    const errorDiv = document.getElementById('loginError');
-    errorDiv.innerText = '';
-    
-    try {
-        const response = await fetch(API_BASE, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            // Assuming the API returns user data and possibly a token
-            currentUser = {
-                id: data.user.id,
-                name: data.user.name || data.user.email,
-                email: data.user.email,
-                token: data.token // if token is provided
-            };
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            document.getElementById('loginView').style.display = 'none';
-            document.getElementById('appView').style.display = 'block';
-            document.getElementById('userName').innerText = currentUser.name;
-            await loadAllProducts();
-            await showProducts('for-you');
-            showToast(`Welcome, ${currentUser.name}! 🎉`);
-        } else {
-            errorDiv.innerText = data.message || 'Invalid email or password';
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        errorDiv.innerText = 'Network error. Please try again.';
-    }
-}
-
-
 function logout() {
     currentUser = null;
     localStorage.removeItem('currentUser');
@@ -389,56 +361,99 @@ async function openProfile() {
     infoDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     modal.style.display = 'flex';
     
-    try {
-        const statsResponse = await fetch(`${API_BASE}/stats`);
-        const stats = await statsResponse.json();
-        
-        infoDiv.innerHTML = `
-            <p class="profile_info"><strong>User ID:</strong> ${currentUser.id}</p>
-            <p class="profile_info"><strong>Name:</strong> ${currentUser.name}</p>
-            <p class="profile_info"><strong>Email:</strong> ${currentUser.email}</p>
-            <p class="profile_info"><strong>Cart Items:</strong> ${cart.reduce((s,i) => s + i.quantity, 0)}</p>
-        `;
-    } catch(e) {
-        infoDiv.innerHTML = `
-            <p class="profile_info"><strong>User ID:</strong> ${currentUser.id}</p>
-            <p class="profile_info"><strong>Name:</strong> ${currentUser.name}</p>
-            <p class="profile_info"><strong>Email:</strong> ${currentUser.email}</p>
-            <p class="profile_info"><strong>Cart Items:</strong> ${cart.reduce((s,i) => s + i.quantity, 0)}</p>
-        `;
-    }
+    infoDiv.innerHTML = `
+        <p class="profile_info"><strong>User ID:</strong> ${currentUser.id}</p>
+        <p class="profile_info"><strong>Name:</strong> ${currentUser.name || currentUser.email}</p>
+        <p class="profile_info"><strong>Email:</strong> ${currentUser.email}</p>
+        <p class="profile_info"><strong>Cart Items:</strong> ${cart.reduce((s,i) => s + i.quantity, 0)}</p>
+        <p class="profile_info"><strong>AI Recommendations:</strong> ${aiRecommendations.length} products</p>
+    `;
 }
 
 function closeProfile() { 
     document.getElementById('profileModal').style.display = 'none'; 
 }
 
-function checkSession() {
+async function checkSession() {
     const saved = localStorage.getItem('currentUser');
     if (saved) {
         currentUser = JSON.parse(saved);
         document.getElementById('loginView').style.display = 'none';
         document.getElementById('appView').style.display = 'block';
-        document.getElementById('userName').innerText = currentUser.name;
-        loadAllProducts().then(() => showProducts('for-you'));
+        document.getElementById('userName').innerHTML = `👤 ${currentUser.name || currentUser.email.split('@')[0]}`;
+        
+        // Load all data
+        await loadAllProducts();
+        await showProducts('for-you');
+        updateCartCount();
     }
 }
 
-// Demo user click
-const demoDiv = document.getElementById('demoUserDiv');
-if (demoDiv) {
-    demoDiv.onclick = () => {
-        document.getElementById('loginEmail').value = 'user1@wolfe-bryant.info';
-        document.getElementById('loginPassword').value = 'pass123';
-    };
-}
+// ========== Login Handling ==========
+const form = document.getElementById('loginForm');
+const messageDiv = document.getElementById('loginError');
 
-// Event listeners
-document.getElementById('loginForm').addEventListener('submit', (e) => {
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
-    login(email, password);
+    
+    messageDiv.innerHTML = 'Logging in...';
+    messageDiv.style.color = '#ce93d8';
+    
+    const submitBtn = form.querySelector('button');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Please wait...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            messageDiv.innerHTML = '✅ Login successful! Redirecting...';
+            
+            currentUser = {
+                id: data.user.id,
+                name: data.user.name || data.user.email,
+                email: data.user.email
+            };
+            
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            setTimeout(() => {
+                document.getElementById('loginView').style.display = 'none';
+                document.getElementById('appView').style.display = 'block';
+                document.getElementById('userName').innerHTML = `👤 ${currentUser.name || currentUser.email.split('@')[0]}`;
+                
+                loadAllProducts().then(() => showProducts('for-you'));
+                updateCartCount();
+                showToast(`Welcome back, ${currentUser.name || 'User'}! 🎉`);
+            }, 1000);
+        } else {
+            messageDiv.innerHTML = data.error || 'Login failed. Please try again.';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        messageDiv.innerHTML = '❌ Cannot connect to server. Please make sure the backend is running on ' + API_BASE;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+    }
+});
+
+// Demo auto-fill
+document.getElementById('demoUserDiv').addEventListener('click', () => {
+    document.getElementById('loginEmail').value = 'user1@gmail.com';
+    document.getElementById('loginPassword').value = 'pass123';
 });
 
 // Initialize
