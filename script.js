@@ -1,6 +1,6 @@
 // API Configuration - Use your actual API endpoint
-// const API_BASE = 'http://localhost:5001'; // Replace with your actual API URL
-const API_BASE = 'https://laithhh527.pythonanywhere.com'; // Replace with your actual API URL
+const API_BASE = 'http://localhost:5001'; // Replace with your actual API URL
+// const API_BASE = 'https://laithhh527.pythonanywhere.com'; // Replace with your actual API URL
 
 let currentUser = null;
 let allProducts = [];
@@ -437,6 +437,17 @@ form.addEventListener('submit', async (e) => {
                 updateCartCount();
                 showToast(`Welcome back, ${currentUser.name || 'User'}! 🎉`);
             }, 1000);
+
+            // return to normal 
+            
+            messageDiv.style.color = '#aa58b8';
+            
+            const submitBtn = form.querySelector('button');
+            submitBtn.disabled = false;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+                submitBtn.textContent = 'sign in';
+            },2000)
         } else {
             messageDiv.innerHTML = data.error || 'Login failed. Please try again.';
             submitBtn.disabled = false;
