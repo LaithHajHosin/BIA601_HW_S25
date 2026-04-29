@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organic Store</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+
+<div class="bg-animation"></div>
+
+<!-- Login View -->
+<div id="loginView" class="container">
+    <div class="auth-card">
+        <h2>Welcome to SVU Organic Store</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" required placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" required placeholder="Enter your password">
+            </div>
+            <div id="loginError" class="error-message"></div>
+            <button type="submit" class="btn-primary">Sign In</button>
+        </form>
+        
+        <div id="demoUserDiv" class="demo-card">
+            <p>🎯 <strong>Demo Login</strong></p>
+            <p>Email: user1@wolfe-bryant.info</p>
+            <p>Password: pass123</p>
+            <p style="font-size: 0.8rem; margin-top: 0.5rem;"> Click to auto fill</p>
+        </div>
+    </div>
+</div>
+
+<!-- Main App View -->
+<div id="appView" style="display: none;">
+    <nav class="navbar">
+        <div class="logo">SVU Organic Store</div>
+        <div class="nav-links">
+            <a class="nav-link active" onclick="showProducts('for-you')">For You</a>
+            <div class="cart-btn" onclick="openCart()">
+                🛒 Cart <span class="cart-count" id="cartCount">0</span>
+            </div>
+            <div class="clam">
+                <span class="user-name" id="userName"></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            <a class="nav-link" onclick="openProfile()">👤 Profile</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h1>Participants</h1>
+            <div class="participants">
+                <div class="participant">
+                    <h2>laith_202422 | Laith Haj Hosin</h2>
+                </div>
+                <div class="participant">
+                    <h2>laith_202422 | Laith Haj Hosin</h2>
+                </div>
+                <div class="participant">
+                    <h2>laith_202422 | Laith Haj Hosin</h2>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="forYouContainer">
+            <div class="loading"><div class="spinner"></div><p>Loading GA recommendations...</p></div>
+        </div>
+        <div class="section-header">
+            <h2>📦 All Products</h2>
+        </div>
+        <div id="ProductsContainer">
+            <div class="loading"><div class="spinner"></div><p>Loading Products...</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- Cart Sidebar -->
+<div id="cartSidebar" class="cart-sidebar">
+    <div class="cart-header">
+        <h3>🛒 Your Shopping Cart</h3>
+        <button class="close-cart" onclick="closeCart()">×</button>
+    </div>
+    <div id="cartItems" class="cart-items">
+        <div style="text-align: center; padding: 2rem;">Your cart is empty</div>
+    </div>
+    <div class="cart-footer">
+        <div class="cart-total">Total: $<span id="cartTotal">0</span></div>
+        <button class="btn-primary" onclick="checkout()">Proceed to Checkout →</button>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profileModal" class="modal">
+    <div class="modal-content">
+        <h2>👤 My Profile</h2>
+        <div id="profileInfo">Loading...</div>
+        <button class="btn-primary" style="margin-top: 1rem;" onclick="closeProfile()">Close</button>
+    </div>
+</div>
+
+</body>
+</html>
